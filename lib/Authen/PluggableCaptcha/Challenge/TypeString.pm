@@ -55,7 +55,7 @@ sub new {
 
 sub validate {
 	my 	( $self , %kw_args )= @_;
-	if ( ! defined $kw_args{'user_response'} ) {
+	if ( ! defined $kw_args{'user_response'} || !$kw_args{'user_response'} ) {
 		die "validate must be called with a 'user_response' argument";
 	}
 	if ( lc($kw_args{'user_response'}) eq lc($self->{'correct_response'}) ) {

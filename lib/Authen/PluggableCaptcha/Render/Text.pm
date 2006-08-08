@@ -49,8 +49,8 @@ sub as_string {
 =pod
 alias to_string
 =cut
-	my 	( $self , %args )= @_;
-	return $self->to_string( %args );
+	my 	( $self , %kw_args )= @_;
+	return $self->to_string( %kw_args );
 }
 
 sub init_valid {

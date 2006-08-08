@@ -40,7 +40,7 @@ sub to_string {
 =pod
 get the object object as a string
 =cut
-	my 	( $self , %args )= @_;
+	my 	( $self , %kw_args )= @_;
 	return $self->{'challenge_instance'}->{'instructions'} . " : " . $self->{'challenge_instance'}->{'user_prompt'};
 }
 

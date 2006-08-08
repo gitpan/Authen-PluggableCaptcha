@@ -14,6 +14,12 @@ Authen::PluggableCaptcha - A pluggable Captcha system for Perl
 
 =head1 SYNOPSIS
 
+Authen::PluggableCaptcha is a Captcha creation framework built on the idea of creating Captchas via plugins. 
+
+As such, it is for 'creating' Captchas in the sense that a programmer writes Perl modules-- not in the sense that a programmer calls a Captcha library for display.
+
+The 'essence' of a Captcha is broken down into components: KeyGeneration KeyValidation Render ChallengeGeneration ChallegeValidation - which you have full control over.  Mix and match existing items, create your own.  Authen::PluggableCaptcha helps you make your own tests and do it fast. 
+
   use Authen::PluggableCaptcha;
   use Authen::PluggableCaptcha::Challenge::TypeString;
   use Authen::PluggableCaptcha::Render::Image::Imager;
@@ -242,6 +248,19 @@ To Do:
 	-- | add a sound plugin ( text-logic might render that a trivial enhancement depending on how obfuscation treats display )
 	-  | is there a way to make the default font more cross platform?
 
+
+Restructuring:
+
+Currently, there are seperate KeyGenerator and KeyValidator classes
+
+Recent discussion regarding database storage/integration suggests that they might be better served as a base KeyMangager class, with hooks to store/expire database keys as necessary.  
+
+Ideally, instead of having external $db->do() routines, KeyManager subclasses would handle all that.  A developer could just create a module with the db routines on necessary hooks into PluggableCaptcha, and then forget about it.
+
+If some sort of db store were wrapped, there would need to be a facility to either pass in db handles or connect string arguments ( 1 read, 1 write -- i like everything separated from the start, so things cluster nicely ) -- or should db connections be fully encapsulated within the module (that sounds assbackawads).
+
+In any event, patches/suggestsions for the above are readily welcome.
+
 =head1 REFERENCES
 
 Many ideas , most notably the approach to creating layered images, came from PyCaptcha , http://svn.navi.cx/misc/trunk/pycaptcha/
@@ -274,7 +293,7 @@ use vars qw(@ISA $VERSION);
 
 use Authen::PluggableCaptcha::ErrorLoggingObject;
 
-$VERSION= '0.01';
+$VERSION= '0.02';
 @ISA= qw( Authen::PluggableCaptcha::ErrorLoggingObject );
 
 #############################################################################
@@ -427,20 +446,20 @@ new captcha specific inits
 
 
 sub _check_requires {
-	my 	( %args )= @_;
+	my 	( %kw_args )= @_;
 
 	# make sure we were called with the requisite args
 	my 	@check_requireds= qw( kw_args__ref requires_array__ref error_message );
 	foreach my $check_required ( @check_requireds ) {
-		if ( !$args{ $check_required } ) {
+		if ( !defined $kw_args{ $check_required } ) {
 			die "Missing required element in _check_requires";
 		}
 	}
 
 	# then check to make sure we have the right args
-	foreach my $required ( @{$args{'requires_array__ref'}} ) {
-		if ( ! defined $args{'kw_args__ref'}{$required} ) {
-			die ( sprintf( $args{'error_message'} , $required ) );
+	foreach my $required ( @{$kw_args{'requires_array__ref'}} ) {
+		if ( ! defined $kw_args{'kw_args__ref'}{$required} ) {
+			die ( sprintf( $kw_args{'error_message'} , $required ) );
 		}
 	}
 	return 1;

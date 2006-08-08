@@ -159,9 +159,9 @@ sub to_string {
 =pod
 return the Imager object as a string
 =cut
-	my	( $self , %args )= @_;
+	my	( $self , %kw_args )= @_;
 	my	$as_string;
-	my	$format=  $args{'format'} || $Authen::PluggableCaptcha::Render::Image::Imager::_DEFAULTS{'format'};
+	my	$format=  $kw_args{'format'} || $Authen::PluggableCaptcha::Render::Image::Imager::_DEFAULTS{'format'};
 	$self->{'_image'}->write( type=>$format , data=>\$as_string );
 	return $as_string;
 }
@@ -171,8 +171,8 @@ sub as_string {
 =pod
 alias to_string
 =cut
-	my	( $self , %args )= @_;
-	return $self->to_string( %args );
+	my	( $self , %kw_args )= @_;
+	return $self->to_string( %kw_args );
 }
 
 

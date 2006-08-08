@@ -233,6 +233,91 @@ if the captcha generator were locked into a page, then you could just hardcode t
 		return;
 	}
 
+
+=head2 FAQ
+
+=head3 It somewhat tickles in my estheticle that there is a new
+constructor for both new and existing CAPTCHAs, and I don't quite
+understand why you do it that way?
+
+There is a single constructer that 'forks' into 2 separate init routines based on an argument to new().
+
+The type='new' routine just creates a new KeyGenerator instance and runs the code necessary to generate a new public_key ( which could conceivably be a little resource intensive, if you've created a module that hits a db to check for colliisions).  The fork was an obvious solution to split unnecessary calls out for performance optimization (ie: only run what you need )
+
+The type='existing' routine automatically validates the construction arguments, which is unnecessary for new captchas.
+
+Originally there was a single 'new', and from that you could call either 'new()' or 'existing()' arguments -- but then I realized that people like 1 line of code.
+
+=head3 Does it really need to know the site secret and seed for an existing CAPTCHA? Intuitively, I would think that it is only needed for a new CAPTCHA, and that only the public keys should be needed for an existing CAPTCHA?
+
+That depends on how the KeyGenerator class you specify uses the site_secret to validate the key (which is why site_secret is not required in the base class )
+
+For example:
+
+  key= md5( $site_secret , $time , $page_name , $session_id ) + ':' + $session
+  key= 'xxxxxxxxxxxxxxxxxx:10000001'
+
+If we know the site_secret under that formula, we always have every components of the item at our disposal -- and can validate the key for integrity
+
+=head3 Also, from the example in the Tutorial, it isn't quite clear if you first have to generate a new CAPTCHA, just to get its key, and then use that key to construct an existing CAPTCHA to create the JPEG. This isn't the case, is it? I could call render on it directly, right?
+
+Yep. it renders directly on this example 'Generate a Captcha' above.
+
+I think there is some confusion in this tutorial because i do 2 things that are a little odd:
+
+	a- i run through the captcha generator to pull a new valid key, this way i can use a new example and have a key validate
+	b- i run through the captcha validator while i can 'guess' an obviously wrong answer.  The way the system is structured, a solution is only provided when you try to validate the captcha.  That is because you might want to 'Render' an existing sound/image captcha which is completely isolated from Validating it.  By purposefully solving it wrong, the routine that sets up the correct user_response is run.
+
+=head3 You actually need to validate the key before check for a correct answer. But couldn't that data be stored on the backend?
+
+Yes,  You could store the data on the backend.  The 'new' constructor will automatically call a key validator so it behaves more like this:
+
+  my 	$captcha= new()
+  if ( !$captcha->{'EXPIRED'} && !captcha->{'INVALID'} )
+  {
+  	render
+  }
+  
+=head3 How would I store the key in the backed?
+
+right now, you could either
+
+  $dbh->do( store $captcha_publickey to db );
+
+or
+
+  create a KeyGenerator subclass, which creates a key and stores it to the db
+  create a KeyValidator subclass which does the db check
+
+=head3 Things there I don't grok, and so, it is something I kinda feel should be stored on the backend
+
+That is totally understandable.  A lot of people want DB storage.  This module was written to support that as an option- not a requirement.
+
+=head3 You still need to call new with "new" as type to get a valid key, right? Which means, it isn't completely standalone...
+
+No.
+
+The public key is something that is outwardly facing.
+
+ie 
+
+  http://mysite.com/captcha.jpg?key=abcdefg
+
+you could call
+
+  my $captcha= PluggableCaptcha->new( type="existing" , public_key="abcdefg" );
+
+and then
+
+  render that as an image
+
+or
+
+  process that for an answer
+
+
+
+
 =head2 That's it!
 
 yep.  sweet.
