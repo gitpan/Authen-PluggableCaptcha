@@ -14,8 +14,8 @@ our @ISA= qw( Authen::PluggableCaptcha::Render::Image::Imager::layers );
 
 ######################################################
 
-use Imager;
-use Imager::Color;
+use Imager ();
+use Imager::Color ();
 
 ######################################################
 

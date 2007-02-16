@@ -1,4 +1,0 @@
-0.02
-	Added some support questions to the FAQ
-	Added discussion of DB wrapping and a generalized KeyManager
-	Fixed a 0/undef/defined/'' issue

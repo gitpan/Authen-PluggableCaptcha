@@ -8,18 +8,18 @@ use strict;
 
 package Authen::PluggableCaptcha::Render::Image::Imager;
 use vars qw(@ISA $VERSION);
-$VERSION= '0.01';
-use Authen::PluggableCaptcha::Render::Image;
+$VERSION= '0.02';
+use Authen::PluggableCaptcha::Render::Image ();
 our @ISA= qw( Authen::PluggableCaptcha::Render::Image );
 
 ######################################################
 
-use Imager;
+use Imager ();
 
-use Authen::PluggableCaptcha::Render::Image::Imager::layers::bg;
-use Authen::PluggableCaptcha::Render::Image::Imager::layers::text;
-use Authen::PluggableCaptcha::Render::Image::Imager::layers::distraction_lines;
-use Authen::PluggableCaptcha::Render::Image::Imager::effects::sinewarp;
+use Authen::PluggableCaptcha::Render::Image::Imager::layers::bg ();
+use Authen::PluggableCaptcha::Render::Image::Imager::layers::text ();
+use Authen::PluggableCaptcha::Render::Image::Imager::layers::distraction_lines ();
+use Authen::PluggableCaptcha::Render::Image::Imager::effects::sinewarp ();
 
 ######################################################
 
@@ -49,7 +49,7 @@ sub new {
 	my	$self= bless ( {} , $class );
 	
 		# init the base class
-		$self->_init_render( \%kw_args );
+		Authen::PluggableCaptcha::Render::_init( $self , \%kw_args );
 
 		# do the subclass init
 		$self->_init( \%kw_args );
@@ -58,7 +58,7 @@ sub new {
 }
 
 sub _init {
-	Authen::PluggableCaptcha::DEBUG_FUNCTION_NAME && &Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('init');
+	Authen::PluggableCaptcha::DEBUG_FUNCTION_NAME && Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('init');
 	my	( $self , $kw_args__ref )= @_;
 
 	$self->{'width'}= $$kw_args__ref{'width'} || $Authen::PluggableCaptcha::Render::Image::Imager::_DEFAULTS{'width'};
@@ -78,15 +78,15 @@ sub _init {
 		ysize=> $self->{'height'} 
 	);
 
-	$self->{'render_text'}= $self->{'challenge_instance'}->{'user_prompt'} || die "No user_prompt!";
+	$self->{'render_text'}= $self->challenge_instance->user_prompt || die "No user_prompt!";
 
-	$self->{'rendered'}= 0;
+	$self->is_rendered(0);
 
 	@{$self->{'_layers'}}= ();
 }
 
 sub init_expired {
-	Authen::PluggableCaptcha::DEBUG_FUNCTION_NAME && &Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('init_expired');
+	Authen::PluggableCaptcha::DEBUG_FUNCTION_NAME && Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('init_expired');
 	my	( $self )= @_;
 	$self->{'font_size'}= $Authen::PluggableCaptcha::Render::Image::Imager::_DEFAULTS{'font_expired_size'};
 	@{$self->{'_layers'}} = (
@@ -107,7 +107,7 @@ sub init_expired {
 }
 
 sub init_valid {
-	Authen::PluggableCaptcha::DEBUG_FUNCTION_NAME && &Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('init_valid');
+	Authen::PluggableCaptcha::DEBUG_FUNCTION_NAME && Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('init_valid');
 	my	( $self )= @_;
 	@{$self->{'_layers'}}= (
 		Authen::PluggableCaptcha::Render::Image::Imager::layers::bg->new( 
@@ -137,7 +137,7 @@ sub init_valid {
 
 
 sub render {
-	Authen::PluggableCaptcha::DEBUG_FUNCTION_NAME && &Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('render');
+	Authen::PluggableCaptcha::DEBUG_FUNCTION_NAME && Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('render');
 	my	( $self )= @_;
 =pod
 Render this CAPTCHA
@@ -145,20 +145,17 @@ Render this CAPTCHA
 	if ( !$self->{'_image'} ) {
 		die "i shouldn't be like this";
 	}
-	if ( $self->{'rendered'} ) {
+	if ( 	$self->is_rendered ) {
 		return;
 	}
 	foreach my $layer ( @{ $self->{'_layers'} } ) {
 		$layer->render();
 	}
-	$self->{'rendered'}= 1;
+	$self->is_rendered(1);
 }
 
-sub to_string {
-	Authen::PluggableCaptcha::DEBUG_FUNCTION_NAME && &Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('to_string');
-=pod
-return the Imager object as a string
-=cut
+sub as_string {
+	Authen::PluggableCaptcha::DEBUG_FUNCTION_NAME && Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('as_string');
 	my	( $self , %kw_args )= @_;
 	my	$as_string;
 	my	$format=  $kw_args{'format'} || $Authen::PluggableCaptcha::Render::Image::Imager::_DEFAULTS{'format'};
@@ -166,24 +163,15 @@ return the Imager object as a string
 	return $as_string;
 }
 
-sub as_string {
-	Authen::PluggableCaptcha::DEBUG_FUNCTION_NAME && &Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('as_string');
-=pod
-alias to_string
-=cut
-	my	( $self , %kw_args )= @_;
-	return $self->to_string( %kw_args );
-}
-
 
 sub get_img {
 	my	( $self )= @_;
-	Authen::PluggableCaptcha::DEBUG_FUNCTION_NAME && &Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('get_img');
+	Authen::PluggableCaptcha::DEBUG_FUNCTION_NAME && Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('get_img');
 =pod
 Get an Imager object representing this Img, creating it if necessary
 we really shouldn't need to do this, but its just a convenience method for testing
 =cut
-	if ( !$self->{'rendered'} ) {
+	if ( !$self->is_rendered ) {
 		$self->render();
 	}
 	return $self->{'_image'};

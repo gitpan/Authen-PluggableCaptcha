@@ -29,17 +29,17 @@ $captcha= Authen::PluggableCaptcha->new(
 	seed=> 'a' , 
 	site_secret=> 'z' 
 );
-	print "\n\t\t captcha->render( challenge=> 'TypeString', render=>'Authen::PluggableCaptcha::Render::Img::Imager' ,  format=>'jpeg' )";
+	print "\n\t\t captcha->render( challenge_class=> 'TypeString', render_class=>'Authen::PluggableCaptcha::Render::Img::Imager' ,  format=>'jpeg' )";
 $as_string= $captcha->render( 
-	challenge=> 'Authen::PluggableCaptcha::Challenge::TypeString', 
-	render=>'Authen::PluggableCaptcha::Render::Image::Imager' ,  
+	challenge_class=> 'Authen::PluggableCaptcha::Challenge::TypeString', 
+	render_class=>'Authen::PluggableCaptcha::Render::Image::Imager' ,  
 	font_filename=> '/usr/X11R6/lib/X11/fonts/TTF/VeraMoIt.ttf',
 	format=>'jpeg' 
 );
 open(WRITE, ">overview/test.jpg");
 print WRITE $as_string;
 close(WRITE);
-$captcha->__dict__();
+print $captcha->__dict__();
 
 &print_line();
 	print "\n testing an EXISTING - new Text... ";
@@ -51,15 +51,15 @@ $captcha= Authen::PluggableCaptcha->new(
 	seed=> 'a' , 
 	site_secret=> 'z' 
 );
-	print "\n\t\t captcha->render( challenge=> 'DoMath', render=>'Text::HTML' )";
+	print "\n\t\t captcha->render( challenge_class=> 'DoMath', render_class=>'Text::HTML' )";
 $as_string= $captcha->render( 
-	challenge=> 'Authen::PluggableCaptcha::Challenge::DoMath', 
-	render=>'Authen::PluggableCaptcha::Render::Text::HTML' 
+	challenge_class=> 'Authen::PluggableCaptcha::Challenge::DoMath', 
+	render_class=>'Authen::PluggableCaptcha::Render::Text::HTML' 
 );
 open(WRITE, ">overview/test.html");
 print WRITE $as_string;
 close(WRITE);
-$captcha->__dict__();
+print $captcha->__dict__();
 
 &print_line();
 	print "\n testing an EXISTING - VALIDATE ";
@@ -73,8 +73,8 @@ $captcha= Authen::PluggableCaptcha->new(
 );
 
 # run the validation 1x through, just so we get the vars set up and can pull the correct_response
-my 	$crap= $captcha->validate_response( challenge=> 'Authen::PluggableCaptcha::Challenge::TypeString' , user_response=>'a' ) ? "yes" : "no" ;
-my 	$success= $captcha->validate_response( challenge=> 'Authen::PluggableCaptcha::Challenge::TypeString' , user_response=>$captcha->{'__Challenge'}{'Authen::PluggableCaptcha::Challenge::TypeString'}{'correct_response'} ) ? "yes" : "no" ;
+my 	$crap= $captcha->validate_response( challenge_class=> 'Authen::PluggableCaptcha::Challenge::TypeString' , user_response=>'a' ) ? "yes" : "no" ;
+my 	$success= $captcha->validate_response( challenge_class=> 'Authen::PluggableCaptcha::Challenge::TypeString' , user_response=>$captcha->{'__Challenge'}{'Authen::PluggableCaptcha::Challenge::TypeString'}{'correct_response'} ) ? "yes" : "no" ;
 
 	print "\n\t ---------- \n\t did we validate_response? $success ";
 	print "\n";

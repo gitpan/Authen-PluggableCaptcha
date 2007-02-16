@@ -12,7 +12,7 @@ package Authen::PluggableCaptcha::Challenge::DoMath;
 use vars qw(@ISA $VERSION);
 $VERSION= '0.01';
 
-use Authen::PluggableCaptcha::Challenge;
+use Authen::PluggableCaptcha::Challenge ();
 our @ISA= qw( Authen::PluggableCaptcha::Challenge );
 
 ######################################################
@@ -78,19 +78,22 @@ sub new {
 	my  ( $proto , %kw_args )= @_;
 	my  $class= ref($proto) || $proto;
 	my  $self= bless ( {} , $class );
-		$self->{'keygenerator_instance'}= $kw_args{'keygenerator_instance'} || die "must supply 'keygenerator_instance'";
-		$self->{'instructions'}= "Please solve this math problem";
+
+		die "must supply 'keymanager_instance'" unless $kw_args{'keymanager_instance'};
+
+		$self->_keymanager( $kw_args{'keymanager_instance'} );
+		$self->_instructions("Please solve this math problem");
+
 		$self->{'_internal_setup'}= {
 			'response_type'=> {},
 		};		
-
 
 	# to make a math problem, we'll first make a hash off the publickey and site secret.
 		my 	$working= md5_hex( 
 				sprintf(
 					"%s|%s" , 
-						$self->{'keygenerator_instance'}->{'site_secret'},
-						$self->{'keygenerator_instance'}->{'publickey'},
+						$self->keymanager->site_secret,
+						$self->keymanager->publickey,
 				)
 			);
 
@@ -107,7 +110,6 @@ sub new {
 		}
 
 		foreach my $char ( @tmp ) {
-			print $char;
 			if ( $char =~ /[a-zA-Z]/ ) {
 				push @letters, $char;
 			}
@@ -142,16 +144,23 @@ sub new {
 			$solution= $int_1 * $int_2 ;
 		}
 		
-		$self->{'user_prompt'}= sprintf( 'What is %s %s %s ? ' , spell_number($int_1) , $operator , spell_number($int_2) );
+		$self->_user_prompt( 
+			sprintf( 
+				'What is %s %s %s ? ' , 
+					spell_number($int_1) , 
+					$operator , 
+					spell_number($int_2) 
+			) 
+		);
 
 		if ( $self->{'_internal_setup'}{'response_type'}{'text'} ) {
 		
-			$self->{'user_prompt'}.= '(in English as alphabetical characters)';
-			$self->{'correct_response'}= spell_number($solution);
+			$self->_user_prompt( $self->user_prompt . '(in English as alphabetical characters)' );
+			$self->_correct_response( spell_number($solution) );
 		}
 		else {
-			$self->{'user_prompt'}.= '(in digits)';
-			$self->{'correct_response'}= $solution;
+			$self->_user_prompt( $self->user_prompt . '(in digits)' );
+			$self->_correct_response( $solution );
 		}
 
 	return $self;
@@ -163,7 +172,7 @@ sub validate {
 	if ( !defined $kw_args{'user_response'} ) {
 		die "validate must be called with a 'user_response' argument";
 	}
-	if ( lc($kw_args{'user_response'}) eq lc($self->{'correct_response'}) ) {
+	if ( lc($kw_args{'user_response'}) eq lc($self->correct_response) ) {
 		return 1;		
 	}
 	return 0;

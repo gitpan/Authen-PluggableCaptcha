@@ -13,8 +13,8 @@ our @ISA= qw( Authen::PluggableCaptcha::Render::Image::Imager::effects );
 
 ######################################################
 
-use Imager;
-use Authen::PluggableCaptcha::Render::Image::Imager::effects;
+use Imager ();
+use Authen::PluggableCaptcha::Render::Image::Imager::effects ();
 
 ######################################################
 

@@ -3,22 +3,32 @@
 #############################################################################
 # Authen::PluggableCaptcha
 # Pluggable Captcha system for perl
-# Copyright(c) 2006, Jonathan Vanasco (cpan@2xlp.com)
+# Copyright(c) 2006-2007, Jonathan Vanasco (cpan@2xlp.com)
 # Distribute under the Perl Artistic License
 #
 #############################################################################
 
 =head1 NAME
 
-Authen::PluggableCaptcha - A pluggable Captcha system for Perl
+Authen::PluggableCaptcha - A pluggable Captcha framework for Perl
 
 =head1 SYNOPSIS
 
-Authen::PluggableCaptcha is a Captcha creation framework built on the idea of creating Captchas via plugins. 
+IMPORTANT-- the .03 release is incompatible with earlier versions.  
+Most notably: all external hooks for hash mangling have been replaced with object methods ( ie: $obj->{'__Challenge'} is now $obj->challenge  ) and keyword arguments expecting a class name have the word '_class' as a suffix.
 
-As such, it is for 'creating' Captchas in the sense that a programmer writes Perl modules-- not in the sense that a programmer calls a Captcha library for display.
+Authen::PluggableCaptcha is a framework for creating Captchas , based on the idea of creating Captchas with a plugin architecture. 
 
-The 'essence' of a Captcha is broken down into components: KeyGeneration KeyValidation Render ChallengeGeneration ChallegeValidation - which you have full control over.  Mix and match existing items, create your own.  Authen::PluggableCaptcha helps you make your own tests and do it fast. 
+The power of this module is that it creates Captchas in the sense that a programmer writes Perl modules-- not just in the sense that a programmer calls a Captcha library for display.
+
+The essence of a Captcha has been broken down into three components: KeyManager , Challenge and Render -- all of which programmers now have full control over.  Mix and match existing classes or create your own.  Authen::PluggableCaptcha helps you make your own captcha tests -- and it helps you do it fast.   
+
+The KeyManager component handles creating & validatiing keys that are later used to uniquely identify a CAPTCHA.  By default the KeyManager uses a time-based key system, but it can be trivially extended to integrate with a database and make single-use keys.
+
+The Challenge component maps a key to a set of instructions, a user prompt , and a correct response. 
+
+The render component is used to display the challenge - be it text, image or sound.
+
 
   use Authen::PluggableCaptcha;
   use Authen::PluggableCaptcha::Challenge::TypeString;
@@ -47,8 +57,8 @@ The 'essence' of a Captcha is broken down into components: KeyGeneration KeyVali
 
   # save it as a file
   my $as_string= $captcha->render( 
-    challenge=> 'Authen::PluggableCaptcha::Challenge::TypeString', 
-    render=>'Authen::PluggableCaptcha::Render::Image::Imager' ,  
+    challenge_class=> 'Authen::PluggableCaptcha::Challenge::TypeString', 
+    render_class=>'Authen::PluggableCaptcha::Render::Image::Imager' ,  
     format=>'jpeg' 
   );
   open(WRITE, ">test.jpg");
@@ -75,7 +85,9 @@ in the above example, $captcha->new just configures the captcha.  $captcha->rend
 if the captcha is expired (too old by the default configuration) , the default expired captcha  routine from the plugin will take place
 better yet, handle all the timely and ip/request validation in the application logic.  the timeliness just makes someone answer a captcha 1x every 5minutes, but doesn't prevent re/mis use
 
-render accepts a 'render' argument that will internally handle a dispatcher funciton.  this way one could create a image sound and text logic rendering for the same public key
+render accepts a 'render_class' argument that will internally dispatch the routines to a new instance of that class.  
+
+using this method, multiple renderings and formats can be created using a single key and challenge.
 
 =head1 DESCRIPTION
 
@@ -87,21 +99,21 @@ Authen::PluggableCaptcha borrows from the functionality in Apache::Session::Flex
 
 =head2 The Base Modules:
 
-=head3 KeyGenerator
+=head3 KeyManager
 
-  Generates and parses publickeys which are used to validate and create captchas
-  Default is Authen::PluggableCaptcha::KeyGenerator , which makes a key %md5%_%time%
+  Consolidates functionality previously found in KeyGenerator and KeyValidator
 
-=head3 KeyValidator
+  Generates , parses and validates publickeys which are used to validate and create captchas
+  Default is Authen::PluggableCaptcha::KeyManager , which makes a key %md5%_%time% and performs no additional checking
 
-  User supplied class to validate a publickey.  
-  This can contain a regex or a bunch of DB interaction stuff to ensure a key is used only one time per ip address
-  Default is Authen::PluggableCaptcha::KeyValidator , which just returns true.
+  A subclass is highly recommended.
+  Subclasses can contain a regex or a bunch of DB interaction stuff to ensure a key is used only one time per ip address
+
 
 =head3 Challenge
 
   simply put, a challenge is a test.  
-  challenges internally require a ref to a keygenerator instance , it then maps that instance via it's own facilities into a test to render or validate
+  challenges internally require a ref to a KeyManager instance , it then maps that instance via it's own facilities into a test to render or validate
   a challege generates 3 bits of text: 
 	instructions
 	user_prompt
@@ -143,7 +155,7 @@ challenges are presented by a public_key
 a seed (sessionID ?) + a server key (siteSecret) hash together to create a public key
 
 =item 3
-the public_key is handled by its own module which can be subclassed as long as it provides the required methods
+the public_key is handled by its own module which can be subclassed and replaced as long as it provides the required methods
 
 =back
 
@@ -193,21 +205,23 @@ text
 
 =back
 
-any single component can be extended or replaced - that means you can cheaply/easily/quickly create new captchas as older ones get defeated ( instead of going crazy trying to make the worlds best captcha)
+any single component can be extended or replaced - that means you can cheaply/easily/quickly create new captchas as older ones get defeated. instead of going crazy trying to make the worlds best captcha, you can just make a ton of crappy ones that are faster to make than to break :)
+
 everything is standardized and made for modular interaction
 since the public_key maps to a captcha test, the same key can create an image/audio/text captcha, 
 
 Note that Render::Image is never called - it is just a base class.
-The module ships with Render::Img::Imager, which uses the Imager library.  Its admittedly not very good- just a proof-of-concept.
+The module ships with Render::Img::Imager, which uses the Imager library.  Its admittedly not very good- it is simple a proof-of-concept.
 
 want gd/imagemagick?  write Render::Img::GD or Render::Image::ImageMagick with the appropriate hooks (and submit to CPAN!)
 
-This is so that you don't need to run GD on your box if you've got a mod_perl setup that is trying to be lean and already uses Imager
-Using any of the image libraries should be a snap- just write a render function that can create an image with 'user_prompt' text, and returns 'as_string'
-Using any of the audio libraries works in the same manner too.
+This functionality exists so that you don't need to run GD on your box if you've got a mod_perl setup that aready uses Imager.
+
+Using any of the image libraries should be a snap- just write a render class that can create an image with 'user_prompt' text, and returns 'as_string'
+Using any of the audio libraries will work in the same manner too.
 
 Initial support includes the ability to have Textual logic Catptchas.  They do silly things like say "What is one plus one ? (as text in english)" 
-HTML::Email::Obfuscate makes it hard to scrape, though a better solution is needed and welcome.
+HTML::Email::Obfuscate makes these hard to scrape, though a better solution is needed and welcome.
 
 One of the main points of PluggableCaptcha is that even if you create a Captcha that is one step ahead of spammers ( read: assholes ) , they're not giving up -- they're just going to take longer to break the Captcha-- and once they do, you're sweating trying to protect yourself again.  
 
@@ -229,6 +243,106 @@ constantly change captchas ON THE FLY.  mix and match render and challenge class
 Under this system, ideally, people can change / adapt / update so fast , that spammers never get a break in their efforts to break captcha schemes!
 
 
+=head1 CONSTRUCTOR
+
+=over 4
+
+=item B<new PARAMS>
+Returns a new L<Authen::PluggableCaptcha> object constructed according to PARAMS, where PARAMS are name/value pairs.
+
+PARAMS are name/value pairs.  
+
+Required PARAMS are:
+
+=over 8
+
+=item C<type TYPE>
+
+Type of captcha. Valid options are 'new' or 'existing'
+
+=item C<seed TYPE>
+
+seed used for key management.  this could be a session id, a session id + url,  an empty string, or any other defined value.
+
+=item C<site_secret TYPE>
+
+site_secret used for key management.  this could be a shared value for your website.
+
+=back
+
+Optional PARAMS are:
+
+=over 8
+
+=item C<keymanager_args TYPE>
+
+The value for the keymanager_args key will be sent to the KeyManager on instantiation as 'keymanager_args'
+
+This is useful if you need to specify a DB connection or something similar to the keymanager
+
+
+
+
+=back
+
+=head1 OBJECT METHODS
+
+=over 4
+
+=item B<captcha_type TYPE>
+
+get the captcha type
+
+=item B<keymanager>
+
+returns an instance of the active keymanager
+
+=item B<challenge_instance TYPE>
+
+returns an instance of a challenge class TYPE
+
+=item B<render_instance TYPE>
+
+returns an instance of a render class TYPE
+
+=item B<die_if_invalid>
+
+calls a die if the captcha is invalid
+
+=item B<get_publickey>
+
+returns a publickey from the keymanager.
+
+=item B<expire_publickey>
+
+instructs the keymanager to expire the publickey. on success returns 1 and sets the captcha as invalid and expired.  returns 0 on failure and -1 on error.
+
+=item B<validate_response>
+
+Validates a user response against the key/time for this captcha
+
+returns 1 on sucess, 0 on failure, -1 on error.
+
+=item B<render PARAMS>
+
+renders the captcha based on the kw_args submitted in PARAMS
+
+returns the rendered captcha as a string
+
+PARAMS are required name/value pairs.  Required PARAMS are:
+
+=over 8
+
+=item C<challenge_class TYPE>
+Full name of a Authen::PluggableCaptcha::Challenge derived class
+
+=item C<render_class TYPE>
+Full name of a Authen::PluggableCaptcha::Render derived class
+
+=back
+
+=back
+
 =head1 BUGS/TODO
 
 This is an initial alpha release.  
@@ -238,29 +352,28 @@ There are a host of issues with it.  Most are discussed here:
 To Do:
 
 	priority | task
+	+++| clean up how stuff is stored / passed around / accessing defaults.  there's a lot of messy stuff with in regards to passing around default values and redundancy of vars
+	+++| create a better way to make attributes shared stored and accessed
 	++ | Imager does not have facilities right now to do a 'sine warp' easily.  figure some sort of text warping for the imager module.
 	++ | Port the rendering portions of cpan gd/imagemagick captchas to Img::(GD|ImageMagick)
-	++ | clean up how stuff is stored / passed around / accessing defaults.  there's a lot of messy stuff with in regards to passing around default values and redundancy of vars
 	++ | Img::Imager make the default font more of a default
 	++ | Img::Imager add in support to render each letter seperately w/a different font/size
 	+  | Img::Imager better handle as_string/save + support for png format etc
-	+  | create a better way to make attributes shared stored and accessed
-	-- | add a sound plugin ( text-logic might render that a trivial enhancement depending on how obfuscation treats display )
 	-  | is there a way to make the default font more cross platform?
+	-- | add a sound plugin ( text-logic might render that a trivial enhancement depending on how obfuscation treats display )
 
 
-Restructuring:
+=head1 STYLE GUIDE
 
-Currently, there are seperate KeyGenerator and KeyValidator classes
+If you make your own subclasses or patches, please keep this information in mind:
 
-Recent discussion regarding database storage/integration suggests that they might be better served as a base KeyMangager class, with hooks to store/expire database keys as necessary.  
 
-Ideally, instead of having external $db->do() routines, KeyManager subclasses would handle all that.  A developer could just create a module with the db routines on necessary hooks into PluggableCaptcha, and then forget about it.
-
-If some sort of db store were wrapped, there would need to be a facility to either pass in db handles or connect string arguments ( 1 read, 1 write -- i like everything separated from the start, so things cluster nicely ) -- or should db connections be fully encapsulated within the module (that sounds assbackawads).
-
-In any event, patches/suggestsions for the above are readily welcome.
-
+	The '.' and '..' prefixes are reserved namespaces ( ie: $self->{'.Attributes'} , $self->{'..Errors'} )
+	
+	Generally: '.' prefixes a shared or inherited trait ; '..' prefixes an class private variable
+	
+	If you see a function with _ in the code, its undocumented and unsupported.  Only write code against regular looking functions.  Never write code against _ or __ functions.  Never.
+	
 =head1 REFERENCES
 
 Many ideas , most notably the approach to creating layered images, came from PyCaptcha , http://svn.navi.cx/misc/trunk/pycaptcha/
@@ -290,24 +403,28 @@ package Authen::PluggableCaptcha;
 
 use strict;
 use vars qw(@ISA $VERSION);
-
-use Authen::PluggableCaptcha::ErrorLoggingObject;
-
-$VERSION= '0.02';
-@ISA= qw( Authen::PluggableCaptcha::ErrorLoggingObject );
+$VERSION= '0.03';
 
 #############################################################################
-#use modules
+#ISA modules
 
-use Authen::PluggableCaptcha::KeyGenerator;
-use Authen::PluggableCaptcha::KeyValidator;
-use Authen::PluggableCaptcha::Render;
+use Authen::PluggableCaptcha::ErrorLoggingObject ();
+use Authen::PluggableCaptcha::Helpers ();
+use Authen::PluggableCaptcha::StandardAttributesObject ();
+use Authen::PluggableCaptcha::ValidityObject ();
+@ISA= qw( Authen::PluggableCaptcha::ErrorLoggingObject Authen::PluggableCaptcha::StandardAttributesObject Authen::PluggableCaptcha::ValidityObject );
 
 #############################################################################
 #use constants
 
-use constant DEBUG_FUNCTION_NAME=> 0;
-use constant BENCH_RENDER=> 0;
+use constant DEBUG_FUNCTION_NAME=> $ENV{'Authen::PluggableCaptcha-DEBUG_FUNCTION_NAME'} || 0;
+use constant BENCH_RENDER=> $ENV{'Authen::PluggableCaptcha-BENCH_RENDER'} || 0;
+
+#############################################################################
+#use modules
+
+use Authen::PluggableCaptcha::KeyManager ();
+use Authen::PluggableCaptcha::Render ();
 
 #############################################################################
 #defined variables
@@ -317,7 +434,7 @@ our %_DEFAULTS= (
 	time_expiry_future=> 30,
 );
 
-our %_types= (
+our %__types= (
 	'existing'=> 1,
 	'new'=> 1
 );
@@ -342,17 +459,19 @@ sub new {
 
 	# make sure we have the requisite kw_args
 	my 	@_requires= qw( type seed site_secret );
-	&Authen::PluggableCaptcha::_check_requires( 
+	Authen::PluggableCaptcha::Helpers::check_requires( 
 		kw_args__ref=> \%kw_args,
 		error_message=> "Missing required element '%s' in new",
 		requires_array__ref=> \@_requires
 	);
 
-	if ( !$_types{$kw_args{'type'}} ) {
+	if ( !$__types{$kw_args{'type'}} ) {
 		die "invalid type";
 	}
 
-		$self->__init_base_captcha( \%kw_args );
+	$self->_captcha_type( $kw_args{'type'} );
+	$self->__init_base_captcha( \%kw_args );
+
 	return $self;
 }
 
@@ -361,130 +480,174 @@ sub __init_base_captcha {
 	base captcha initialization
 =cut
 	my  ( $self , $kw_args__ref )= @_;
-	DEBUG_FUNCTION_NAME && &Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('__init_base_captcha');
-	$self->__init_errors(); # re- ErrorLoggingObject 
-	$self->{'time_now'}= time();
-	$self->{'seed'}= $$kw_args__ref{'seed'};
-	$self->{'site_secret'}= $$kw_args__ref{'site_secret'};
-	$self->{'time_expiry'}= $$kw_args__ref{'time_expiry'} || $Authen::PluggableCaptcha::_DEFAULTS{'time_expiry'};
-	$self->{'time_expiry_future'}= $$kw_args__ref{'time_expiry_future'} || $Authen::PluggableCaptcha::_DEFAULTS{'time_expiry_future'};
+	DEBUG_FUNCTION_NAME && Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('__init_base_captcha');
 
-	$self->{'keygenerator_class'}= $$kw_args__ref{'keygenerator_class'} || 'Authen::PluggableCaptcha::KeyGenerator';
-	unless ( $self->{'keygenerator_class'}->can('generate_publickey') ) {
-		eval "require $self->{'keygenerator_class'}" || die $@ ;
+	$self->__init__errors(); # re- ErrorLoggingObject 
+
+	$self->seed( $$kw_args__ref{'seed'} );
+	$self->site_secret( $$kw_args__ref{'site_secret'} );
+	$self->time_expiry( $$kw_args__ref{'time_expiry'} || $Authen::PluggableCaptcha::_DEFAULTS{'time_expiry'} );
+	$self->time_expiry_future( $$kw_args__ref{'time_expiry_future'} || $Authen::PluggableCaptcha::_DEFAULTS{'time_expiry_future'} );
+	$self->time_now( time() );
+
+	my 	$keymanager_class= $$kw_args__ref{'keymanager_class'} || 'Authen::PluggableCaptcha::KeyManager';
+
+	unless ( $keymanager_class->can('generate_publickey') ) {
+		eval "require $keymanager_class" || die $@ ;
 	}
-
-	$self->{'keyvalidator_class'}= $$kw_args__ref{'keyvalidator_class'} || 'Authen::PluggableCaptcha::KeyValidator';
-	unless ( $self->{'keyvalidator_class'}->can('validate_publickey') ) {
-		eval "require $self->{'keyvalidator_class'}" || die $@ ;
+	unless ( $keymanager_class->can('validate_publickey') ) {
+		die "keymanager_class can not validate_publickey" ;
 	}
-	$self->{'keyvalidator_instance'}= $self->{'keyvalidator_class'}->new();
+	
+	$self->__keymanager_class( $keymanager_class );
 
-	$self->{'__did_init'}= {};
-	$self->{'__Render'}= {};
-	$self->{'__Challenge'}= {};
+	my 	$keymanager= $self->__keymanager_class->new(
+		seed=> $self->seed ,
+		site_secret=> $self->site_secret ,
+		time_expiry=> $self->time_expiry ,
+		time_expiry_future=> $self->time_expiry_future ,
+		time_now=> $self->time_now ,
+		keymanager_args=> $$kw_args__ref{'keymanager_args'}
+	);
+	$self->_keymanager( $keymanager );
 
 	if ( $$kw_args__ref{'type'} eq 'existing' ) {
-		$self->{'__type'}= 'existing';
 		$self->__init_existing( $kw_args__ref );
 	}
 	else {
-		$self->{'__type'}= 'new';
 		$self->__init_new( $kw_args__ref );
 	}
 }
+
+sub captcha_type {
+	my 	( $self )= @_;
+	return $self->{'.captcha_type'};
+}
+sub _captcha_type {
+	my 	( $self , $set_val )= @_;
+	if 	( !defined $set_val ) {
+		die "no captcha_type specified"
+	}
+	$self->{'.captcha_type'}= $set_val;
+	return $self->{'.captcha_type'};
+}
+
 
 sub __init_existing {
 =pod
 existing captcha specific inits
 =cut
 	my 	( $self , $kw_args__ref )= @_;
-	DEBUG_FUNCTION_NAME && &Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('__init_existing');
+	DEBUG_FUNCTION_NAME && Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('__init_existing');
 	if ( ! $$kw_args__ref{'publickey'} ) {
 		die "'publickey' must be supplied during init";
 	}
-	$self->{'publickey'}= $$kw_args__ref{'publickey'};
-	$self->{'keygenerator_instance'}= $self->{'keygenerator_class'}->new( 
-		time_now=> $self->{'time_now'} , 
-		time_expiry=> $self->{'time_expiry'} , 
-		time_expiry_future=> $self->{'time_expiry_future'} , 
-		seed=> $self->{'seed'} , 
-		site_secret=> $self->{'site_secret'} 
-	) or die "Could not create keygenerator";
-	if ( !$self->{'keygenerator_instance'}->init_existing( publickey=> $$kw_args__ref{'publickey'} ) ) {
-		$self->{'keygenerator_instance'}->{'ACCEPTABLE_ERROR'} or die "Could not init_existing on keygen";
+	$self->publickey( $$kw_args__ref{'publickey'} );
+	my $keymanager_instance= $self->__keymanager_class->new( 
+		time_now=> $self->time_now , 
+		time_expiry=> $self->time_expiry , 
+		time_expiry_future=> $self->time_expiry_future , 
+		seed=> $self->seed , 
+		site_secret=> $self->site_secret 
+	) or die "Could not create keymanager";
+	$self->_keymanager( $keymanager_instance );
+
+	my 	$generate_result= $self->keymanager->init_existing( publickey=> $$kw_args__ref{'publickey'} );
+
+	if ( $generate_result < 0 ) {
+		$self->keymanager->ACCEPTABLE_ERROR or die "Could not init_existing on keymanager";
 	}
-	if ( $self->{'keygenerator_instance'}->{'EXPIRED'} ) {
-		$self->{'EXPIRED'}= 1;
+	elsif ( $generate_result == 0 ) {
+		print STDERR $self->keymanager->get_error('init_existing');
+		$self->keymanager->ACCEPTABLE_ERROR or die "Could not init_existing on keymanager";
+	}
+	if ( $self->keymanager->EXPIRED ) {
+		$self->EXPIRED(1);
 		return 0;
 	}
-	if ( $self->{'keygenerator_instance'}->{'INVALID'} ) {
-		$self->{'INVALID'}= 1;
+	if ( $self->keymanager->INVALID ) {
+		$self->INVALID(1);
 		return 0;
 	}
-	$self->{'__did_init'}{'existing'}= 1;
 	return 1;
 }
+
 
 sub __init_new {
 =pod
 new captcha specific inits
 =cut
 	my 	( $self , $kw_args__ref )= @_;
-	DEBUG_FUNCTION_NAME && &Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('__init_new');
-	$self->{'keygenerator_instance'}= $self->{'keygenerator_class'}->new( 
-		time_now=> $self->{'time_now'} , 
-		time_expiry=> $self->{'time_expiry'} , 
-		time_expiry_future=> $self->{'time_expiry_future'} , 
-		seed=> $self->{'seed'} , 
-		site_secret=> $self->{'site_secret'} 
-	) or die "Could not create keygenerator";
-	$self->{'keygenerator_instance'}->generate_publickey() or die "Could not generate_publickey on keygen";
-	$self->{'__did_init'}{'new'}= 1;
+	DEBUG_FUNCTION_NAME && Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('__init_new');
+	my $keymanager_instance= $self->__keymanager_class->new( 
+		time_now=> $self->time_now , 
+		time_expiry=> $self->time_expiry , 
+		time_expiry_future=> $self->time_expiry_future , 
+		seed=> $self->seed , 
+		site_secret=> $self->site_secret 
+	) or die "Could not create keymanager";
+	$self->_keymanager( $keymanager_instance );
+	$self->keymanager->generate_publickey() or die "Could not generate_publickey on keymanager";
 	return 1;
 }
 
 
-sub _check_requires {
-	my 	( %kw_args )= @_;
-
-	# make sure we were called with the requisite args
-	my 	@check_requireds= qw( kw_args__ref requires_array__ref error_message );
-	foreach my $check_required ( @check_requireds ) {
-		if ( !defined $kw_args{ $check_required } ) {
-			die "Missing required element in _check_requires";
-		}
+sub __keymanager_class {
+	my 	( $self , $class )= @_;
+	if ( defined $class ){
+		$self->{'..keymanager_class'}= $class;
 	}
+	return $self->{'..keymanager_class'};
+}
 
-	# then check to make sure we have the right args
-	foreach my $required ( @{$kw_args{'requires_array__ref'}} ) {
-		if ( ! defined $kw_args{'kw_args__ref'}{$required} ) {
-			die ( sprintf( $kw_args{'error_message'} , $required ) );
-		}
+sub _keymanager {
+	my 	( $self , $instance )= @_;
+	die "no keymanager instance" unless $instance;
+	$self->{'..keymanager_instance'}= $instance;
+	return $self->{'..keymanager_instance'};
+}
+sub keymanager {
+	my 	( $self )= @_;
+	return $self->{'..keymanager_instance'};
+}
+
+
+
+sub render_instance {
+	my 	( $self , $render_instance_class )= @_;
+	die unless $render_instance_class ;
+	return $self->{'..render_instance'}{ $render_instance_class };
+}
+sub challenge_instance {
+	my 	( $self , $challenge_instance_class , $challenge_instance_object )= @_;
+	die unless $challenge_instance_class ;
+	return $self->{'..challenge_instance'}{ $challenge_instance_class };
+}
+
+sub _render_instance {
+	my 	( $self , $render_instance_class , $render_instance_object )= @_;
+	die unless $render_instance_class ;
+	die "no render_instance_object supplied" unless $render_instance_object;
+	$self->{'..render_instance'}{ $render_instance_class }= $render_instance_object;
+	return $self->{'..render_instance'}{ $render_instance_class };
+}
+
+sub _challenge_instance {
+	my 	( $self , $challenge_instance_class , $challenge_instance_object )= @_;
+	die unless $challenge_instance_class ;
+	die "no challenge_instance_object supplied" unless $challenge_instance_object;
+	$self->{'..challenge_instance'}{ $challenge_instance_class }= $challenge_instance_object;
+	return $self->{'..challenge_instance'}{ $challenge_instance_class };
+}
+
+
+sub die_if_invalid {
+	my 	( $self , %kw_args )= @_;
+	DEBUG_FUNCTION_NAME && Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('die_if_invalid');
+
+	if ( $self->INVALID ) {
+		die "Authen::PluggableCaptcha Invalid , can not '$kw_args{from_function}'";
 	}
-	return 1;
-}
-
-sub __check_invalid {
-	my 	( $self , $function )= @_;
-	if ( $self->{'INVALID'} ) {
-		die "Authen::PluggableCaptcha Invalid , can not '$function'";
-	}
-}
-
-sub is_valid {
-	my 	( $self )= @_;
-	return !$self->{'INVALID'};
-}
-
-sub is_invalid {
-	my 	( $self )= @_;
-	return $self->{'INVALID'};
-}
-
-sub is_expired {
-	my 	( $self )= @_;
-	return $self->{'EXPIRED'};
 }
 
 sub get_publickey {
@@ -492,12 +655,12 @@ sub get_publickey {
 Generates a key that can be used to ( generate a captcha ) or ( validate a captcha )
 =cut
 	my 	( $self )= @_;
-	DEBUG_FUNCTION_NAME && &Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('generate_publickey');
+	DEBUG_FUNCTION_NAME && Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('generate_publickey');
 
 	# die if the captcha is invalid
-	$self->__check_invalid('generate_publickey');
+	$self->die_if_invalid( from_function=> 'generate_publickey' );
 
-	return $self->{'keygenerator_instance'}{'publickey'};
+	return $self->keymanager->publickey;
 }
 
 sub __validate_key_extended {
@@ -505,46 +668,64 @@ sub __validate_key_extended {
 This uses the extended validation module
 =cut
 	my 	( $self )= @_;
-	DEBUG_FUNCTION_NAME && &Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('__validate_key_extended');
+	DEBUG_FUNCTION_NAME && Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('__validate_key_extended');
 
 	# make sure we instantiated as an existing captcha
-	if ( $self->{'__type'} ne 'existing' ) {
+	if ( $self->captcha_type ne 'existing' ) {
 		die "only 'existing' type can validate";
 	}
 
-	my 	$validity= $self->{'keyvalidator_instance'}->validate_publickey( keygenerator_instance=> $self->{'keygenerator_instance'} );
-	if ( $self->{'keyvalidator_instance'}->{'EXPIRED'} ) {
-		$self->{'EXPIRED'}= 1;
+	my 	$validity= $self->keymanager->validate_publickey();
+	if ( $self->keymanager->EXPIRED ) {
+		$self->EXPIRED(1);
 	}
-	if ( $self->{'keyvalidator_instance'}->{'INVALID'} ) {
-		$self->{'INVALID'}= 1;
+	if ( $self->keymanager->INVALID ) {
+		$self->INVALID(1);
 	}
 
 	return $validity;
 }
+
+
+sub expire_publickey {
+=pod
+Expires a publickey
+=cut
+	my 	( $self , %kw_args )= @_;
+	DEBUG_FUNCTION_NAME && Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('validate_response');
+
+	my 	$result= $self->keymanager->expire_publickey ;
+	if 	( $result == 1 )
+	{
+		$self->EXPIRED(1);
+		$self->INVALID(1);
+	}
+	return $result;
+}
+
 
 sub validate_response {
 =pod
 Validates a user response against the key/time for this captcha
 =cut
 	my 	( $self , %kw_args )= @_;
-	DEBUG_FUNCTION_NAME && &Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('validate_response');
+	DEBUG_FUNCTION_NAME && Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('validate_response');
 
 	# die if the captcha is invalid
-	$self->__check_invalid('validate_response');
-	if ( $self->{'EXPIRED'} ) {
+	$self->die_if_invalid( from_function=> 'validate_response' );
+	if ( $self->EXPIRED ) {
 		$self->set_error( 'validate_response' , 'KEY expired' );
 		return 0;
 	}
 
 	# make sure we instantiated as an existing captcha
-	if ( $self->{'__type'} ne 'existing' ) {
+	if ( $self->captcha_type ne 'existing' ) {
 		die "only 'existing' type can validate";
 	}
 
 	# make sure we have the requisite kw_args
-	my 	@_requires= qw( challenge user_response );
-	&Authen::PluggableCaptcha::_check_requires( 
+	my 	@_requires= qw( challenge_class user_response );
+	Authen::PluggableCaptcha::Helpers::check_requires( 
 		kw_args__ref=> \%kw_args,
 		error_message=> "Missing required element '%s' in validate",
 		requires_array__ref=> \@_requires
@@ -561,9 +742,9 @@ Validates a user response against the key/time for this captcha
 	# then actually validate the captcha
 
 	# generate a challenge if necessary
-	$self->_generate_challenge( challenge=>$kw_args{'challenge'} );
-	my 	$class_challenge= $kw_args{'challenge'};
-	my 	$challenge= $self->{'__Challenge'}{ $class_challenge } ;
+	$self->_generate_challenge( challenge_class=>$kw_args{'challenge_class'} );
+	my 	$challenge_class= $kw_args{'challenge_class'};
+	my 	$challenge= $self->challenge_instance( $challenge_class );
 
 	# validate the actual challenge
 	if ( !$challenge->validate( user_response=> $kw_args{'user_response'} ) ) {
@@ -576,31 +757,28 @@ Validates a user response against the key/time for this captcha
 
 sub _generate_challenge {
 	my 	( $self , %kw_args )= @_;
-	DEBUG_FUNCTION_NAME && &Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('_generate_challenge');
+	DEBUG_FUNCTION_NAME && Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('_generate_challenge');
 
 	# make sure we instantiated as an existing captcha
-	if ( $self->{'__type'} ne 'existing' ) {
+	if ( $self->captcha_type ne 'existing' ) {
 		die "only 'existing' type can _generate_challenge";
 	}
 
 	# make sure we have the requisite kw_args
-	my 	@_requires= qw( challenge );
-	&Authen::PluggableCaptcha::_check_requires( 
+	my 	@_requires= qw( challenge_class );
+	Authen::PluggableCaptcha::Helpers::check_requires( 
 		kw_args__ref=> \%kw_args,
 		error_message=> "Missing required element '%s' in _generate_challenge",
 		requires_array__ref=> \@_requires
 	);
 
-	my 	$class_challenge= $kw_args{'challenge'};
-	unless ( $class_challenge->can('generate_challenge') ) {
-		eval "require $class_challenge" || die $@ ;
+	my 	$challenge_class= $kw_args{'challenge_class'};
+	unless ( $challenge_class->can('generate_challenge') ) {
+		eval "require $challenge_class" || die $@ ;
 	}
 
 	# if we haven't created a challege for this output already, do so
-	if ( !$self->{'__Challenge'}{ $class_challenge } ){
-		# delete the 'challenge' from the kwargs, add a 'class_challenge' and push all of that to the wrapper function
-		delete $kw_args{'challenge'};
-		$kw_args{'class_challenge'}= $class_challenge;
+	if ( !$self->challenge_instance( $challenge_class ) ){
 		$self->__generate_challenge__actual( \%kw_args );
 	}
 }
@@ -611,65 +789,60 @@ sub __generate_challenge__actual {
 	actually generates the challenge for an item and caches internally
 =cut
 	my 	( $self , $kw_args__ref )= @_;
-	DEBUG_FUNCTION_NAME && &Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('__generate_challenge__actual');
-	if ( !$$kw_args__ref{'class_challenge'} ) {
-		die "missing class_challenge in __generate_challenge__actual";
+	DEBUG_FUNCTION_NAME && Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('__generate_challenge__actual');
+	if ( !$$kw_args__ref{'challenge_class'} ) {
+		die "missing challenge_class in __generate_challenge__actual";
 	}
 
-	my 	$class_challenge= $$kw_args__ref{'class_challenge'};
-	delete  $$kw_args__ref{'class_challenge'};
-	$$kw_args__ref{'keygenerator_instance'}= $self->{'keygenerator_instance'} || die "No keygenerator_instance";
+	my 	$challenge_class= $$kw_args__ref{'challenge_class'};
+	delete  $$kw_args__ref{'challenge_class'};
+	
+	$$kw_args__ref{'keymanager_instance'}= $self->keymanager || die "No keymanager";
 
-	my 	$challenge= $class_challenge->new( %{$kw_args__ref} );
-	$self->{'__Challenge'}{ $class_challenge }= $challenge;
+	my 	$challenge= $challenge_class->new( %{$kw_args__ref} );
+	$self->_challenge_instance( $challenge_class , $challenge );
 }
-
-
 
 sub render {
 	my 	( $self , %kw_args )= @_;
-	DEBUG_FUNCTION_NAME && &Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('render');
+	DEBUG_FUNCTION_NAME && Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('render');
 
 	# die if the captcha is invalid
-	$self->__check_invalid('render');
+	$self->die_if_invalid( from_function=> 'render' );
 
 	# make sure we instantiated as an existing captcha
-	if ( $self->{'__type'} ne 'existing' ) {
+	if ( $self->captcha_type ne 'existing' ) {
 		die "only 'existing' type can render";
 	}
 
 	# make sure we have the requisite kw_args
-	my 	@_requires= qw( render challenge );
-	&Authen::PluggableCaptcha::_check_requires( 
+	my 	@_requires= qw( render_class challenge_class );
+	Authen::PluggableCaptcha::Helpers::check_requires( 
 		kw_args__ref=> \%kw_args,
 		error_message=> "Missing required element '%s' in render",
 		requires_array__ref=> \@_requires
 	);
 
 
-	my 	$class_render= $kw_args{'render'};
-	unless ( $class_render->can('render') ) {
-		eval "require $class_render" || die $@ ;
+	my 	$render_class= $kw_args{'render_class'};
+	unless ( $render_class->can('render') ) {
+		eval "require $render_class" || die $@ ;
 	}
 
 	# if we haven't rendered for this output already, do so
-	if ( !$self->{'__Render'}{ $class_render } ){
-
-		# delete the 'render' from the kwargs, add a 'class_render' and push all of that to the wrapper function
-		delete $kw_args{'render'};
-		$kw_args{'class_render'}= $class_render;
+	if ( !$self->render_instance( $render_class ) )
+	{
 
 		# grab a ref to the challenge
-		$self->_generate_challenge( challenge=>$kw_args{'challenge'} );
-		my 	$class_challenge= $kw_args{'challenge'};
-		my 	$challenge_instance= $self->{'__Challenge'}{ $class_challenge } ;
+		# and supply the necessary refs
 
-		# supply the necessary refs
-		$kw_args{'challenge_instance'}= $challenge_instance;
-		$kw_args{'keygenerator_instance'}= $self->{'keygenerator_instance'};
+		$self->_generate_challenge( challenge_class=>$kw_args{'challenge_class'} );
+		my 	$challenge_class= $kw_args{'challenge_class'};
+		$kw_args{'challenge_instance'}= $self->challenge_instance( $challenge_class );
+		$kw_args{'keymanager'}= $self->keymanager;
 		$self->__render_actual( \%kw_args );
 	}
-	return $self->{'__Render'}{ $class_render }->as_string();
+	return $self->render_instance( $render_class )->as_string();
 }
 
 
@@ -678,29 +851,29 @@ sub __render_actual {
 	actually renders an item and caches internally
 =cut
 	my 	( $self , $kw_args__ref )= @_;
-	DEBUG_FUNCTION_NAME && &Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('__render_actual');
+	DEBUG_FUNCTION_NAME && Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('__render_actual');
 
 	# make sure we have the requisite kw_args
-	my 	@_requires= qw( class_render challenge_instance );
-	&Authen::PluggableCaptcha::_check_requires( 
+	my 	@_requires= qw( render_class challenge_class );
+	Authen::PluggableCaptcha::Helpers::check_requires( 
 		kw_args__ref=> $kw_args__ref,
 		error_message=> "Missing required element '%s' in __render_actual",
 		requires_array__ref=> \@_requires
 	);
 
-	my 	$class_render= $$kw_args__ref{'class_render'};
-	delete  $$kw_args__ref{'class_render'};
+	my 	$render_class= $$kw_args__ref{'render_class'};
+	delete  $$kw_args__ref{'render_class'};
 
 	BENCH_RENDER && { $self->{'time_to_render'}= Time::HiRes::time() };
-	my 	$render= $class_render->new( %{$kw_args__ref} );
-	if ( $self->{'EXPIRED'} ){
-		$render->init_expired( $kw_args__ref );
+	my 	$render_object= $render_class->new( %{$kw_args__ref} );
+	if ( $self->EXPIRED ){
+		$render_object->init_expired( $kw_args__ref );
 	}
 	else {
-		$render->init_valid( $kw_args__ref );
+		$render_object->init_valid( $kw_args__ref );
 	}
-	$render->render();
-	$self->{'__Render'}{ $class_render }= $render;
+	$render_object->render();
+	$self->_render_instance( $render_class , $render_object );
 	BENCH_RENDER && { $self->{'time_to_render'}= Time::HiRes::time()- $self->{'time_to_render'} };
 }
 

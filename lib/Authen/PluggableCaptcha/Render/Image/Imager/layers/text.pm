@@ -9,13 +9,13 @@ use strict;
 package Authen::PluggableCaptcha::Render::Image::Imager::layers::text;
 use vars qw(@ISA $VERSION);
 $VERSION= '0.01';
-use Authen::PluggableCaptcha::Render::Image::Imager::layers;
+use Authen::PluggableCaptcha::Render::Image::Imager::layers ();
 our @ISA= qw( Authen::PluggableCaptcha::Render::Image::Imager::layers );
 
 ######################################################
 
-use Imager;
-use Imager::Color;
+use Imager ();
+use Imager::Color ();
 
 ######################################################
 

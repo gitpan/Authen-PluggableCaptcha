@@ -70,7 +70,10 @@ sub CAPTCHA_init {
 	%PetalPersonalizedHash= (
 		'Captcha'=> {
 			instructions=> undef,
-			user_prompt=> $self->{'CaptchaInstance'}->render( challenge=> 'Authen::PluggableCaptcha::Challenge::DoMath', render=>'Authen::PluggableCaptcha:::Render::Text::HTML' ),
+			user_prompt=> $self->{'CaptchaInstance'}->render( 
+				challenge_class=> 'Authen::PluggableCaptcha::Challenge::DoMath', 
+				render_class=>'Authen::PluggableCaptcha:::Render::Text::HTML' 
+			),
 		},
 	);
 	
@@ -78,7 +81,7 @@ sub CAPTCHA_init {
 
 	if 	(
 			!$self->{'CaptchaInstance'}->validate_response(
-				challenge=> 'Authen::PluggableCaptcha::Challenge::DoMath',
+				challenge_class=> 'Authen::PluggableCaptcha::Challenge::DoMath',
 				user_response=> $self->{'Form'}->get_validated('captcha_response'),
 			)
 		) {
@@ -111,8 +114,8 @@ sub CAPTCHA_init {
 		
 			$self->{'PageUser'}{'ApacheRequest'}->content_type('image/jpeg');
 			$self->{'__BODY'}= $self->{'CaptchaInstance'}->render( 
-				challenge=> 'Authen::PluggableCaptcha::Challenge::TypeString', 
-				render=>'Authen::PluggableCaptcha::Render::Image::Imager' ,  
+				challenge_class=> 'Authen::PluggableCaptcha::Challenge::TypeString', 
+				render_class=>'Authen::PluggableCaptcha::Render::Image::Imager' ,  
 				font_filename=> '/usr/X11R6/lib/X11/fonts/TTF/VeraMoIt.ttf',
 				format=>'jpeg' 
 			);
