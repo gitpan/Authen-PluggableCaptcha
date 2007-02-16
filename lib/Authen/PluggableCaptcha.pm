@@ -403,7 +403,7 @@ package Authen::PluggableCaptcha;
 
 use strict;
 use vars qw(@ISA $VERSION);
-$VERSION= '0.03';
+$VERSION= '0.04';
 
 #############################################################################
 #ISA modules
@@ -470,27 +470,16 @@ sub new {
 	}
 
 	$self->_captcha_type( $kw_args{'type'} );
-	$self->__init_base_captcha( \%kw_args );
 
-	return $self;
-}
+	Authen::PluggableCaptcha::ErrorLoggingObject::_init( $self ); #re- ErrorLoggingObject 
 
-sub __init_base_captcha {
-=pod
-	base captcha initialization
-=cut
-	my  ( $self , $kw_args__ref )= @_;
-	DEBUG_FUNCTION_NAME && Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('__init_base_captcha');
-
-	$self->__init__errors(); # re- ErrorLoggingObject 
-
-	$self->seed( $$kw_args__ref{'seed'} );
-	$self->site_secret( $$kw_args__ref{'site_secret'} );
-	$self->time_expiry( $$kw_args__ref{'time_expiry'} || $Authen::PluggableCaptcha::_DEFAULTS{'time_expiry'} );
-	$self->time_expiry_future( $$kw_args__ref{'time_expiry_future'} || $Authen::PluggableCaptcha::_DEFAULTS{'time_expiry_future'} );
+	$self->seed( $kw_args{'seed'} );
+	$self->site_secret( $kw_args{'site_secret'} );
+	$self->time_expiry( $kw_args{'time_expiry'} || $Authen::PluggableCaptcha::_DEFAULTS{'time_expiry'} );
+	$self->time_expiry_future( $kw_args{'time_expiry_future'} || $Authen::PluggableCaptcha::_DEFAULTS{'time_expiry_future'} );
 	$self->time_now( time() );
 
-	my 	$keymanager_class= $$kw_args__ref{'keymanager_class'} || 'Authen::PluggableCaptcha::KeyManager';
+	my 	$keymanager_class= $kw_args{'keymanager_class'} || 'Authen::PluggableCaptcha::KeyManager';
 
 	unless ( $keymanager_class->can('generate_publickey') ) {
 		eval "require $keymanager_class" || die $@ ;
@@ -507,16 +496,17 @@ sub __init_base_captcha {
 		time_expiry=> $self->time_expiry ,
 		time_expiry_future=> $self->time_expiry_future ,
 		time_now=> $self->time_now ,
-		keymanager_args=> $$kw_args__ref{'keymanager_args'}
+		keymanager_args=> $kw_args{'keymanager_args'}
 	);
 	$self->_keymanager( $keymanager );
 
-	if ( $$kw_args__ref{'type'} eq 'existing' ) {
-		$self->__init_existing( $kw_args__ref );
+	if ( $kw_args{'type'} eq 'existing' ) {
+		$self->__init_existing( \%kw_args );
 	}
 	else {
-		$self->__init_new( $kw_args__ref );
+		$self->__init_new( \%kw_args );
 	}
+	return $self;
 }
 
 sub captcha_type {
@@ -543,22 +533,14 @@ existing captcha specific inits
 		die "'publickey' must be supplied during init";
 	}
 	$self->publickey( $$kw_args__ref{'publickey'} );
-	my $keymanager_instance= $self->__keymanager_class->new( 
-		time_now=> $self->time_now , 
-		time_expiry=> $self->time_expiry , 
-		time_expiry_future=> $self->time_expiry_future , 
-		seed=> $self->seed , 
-		site_secret=> $self->site_secret 
-	) or die "Could not create keymanager";
-	$self->_keymanager( $keymanager_instance );
 
-	my 	$generate_result= $self->keymanager->init_existing( publickey=> $$kw_args__ref{'publickey'} );
+	my 	$validate_result= $self->keymanager->validate_publickey( publickey=> $$kw_args__ref{'publickey'} );
+	print STDERR "\n validate_result -> $validate_result ";
 
-	if ( $generate_result < 0 ) {
+	if ( $validate_result < 0 ) {
 		$self->keymanager->ACCEPTABLE_ERROR or die "Could not init_existing on keymanager";
 	}
-	elsif ( $generate_result == 0 ) {
-		print STDERR $self->keymanager->get_error('init_existing');
+	elsif ( $validate_result == 0 ) {
 		$self->keymanager->ACCEPTABLE_ERROR or die "Could not init_existing on keymanager";
 	}
 	if ( $self->keymanager->EXPIRED ) {
@@ -579,14 +561,7 @@ new captcha specific inits
 =cut
 	my 	( $self , $kw_args__ref )= @_;
 	DEBUG_FUNCTION_NAME && Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('__init_new');
-	my $keymanager_instance= $self->__keymanager_class->new( 
-		time_now=> $self->time_now , 
-		time_expiry=> $self->time_expiry , 
-		time_expiry_future=> $self->time_expiry_future , 
-		seed=> $self->seed , 
-		site_secret=> $self->site_secret 
-	) or die "Could not create keymanager";
-	$self->_keymanager( $keymanager_instance );
+
 	$self->keymanager->generate_publickey() or die "Could not generate_publickey on keymanager";
 	return 1;
 }
@@ -661,29 +636,6 @@ Generates a key that can be used to ( generate a captcha ) or ( validate a captc
 	$self->die_if_invalid( from_function=> 'generate_publickey' );
 
 	return $self->keymanager->publickey;
-}
-
-sub __validate_key_extended {
-=pod
-This uses the extended validation module
-=cut
-	my 	( $self )= @_;
-	DEBUG_FUNCTION_NAME && Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('__validate_key_extended');
-
-	# make sure we instantiated as an existing captcha
-	if ( $self->captcha_type ne 'existing' ) {
-		die "only 'existing' type can validate";
-	}
-
-	my 	$validity= $self->keymanager->validate_publickey();
-	if ( $self->keymanager->EXPIRED ) {
-		$self->EXPIRED(1);
-	}
-	if ( $self->keymanager->INVALID ) {
-		$self->INVALID(1);
-	}
-
-	return $validity;
 }
 
 
