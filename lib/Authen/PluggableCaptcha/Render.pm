@@ -6,7 +6,7 @@
 
 =head1 NAME
 
-Authen::PluggableCaptch::Render
+Authen::PluggableCaptcha::Render
 
 =head1 SYNOPSIS
 
@@ -72,6 +72,15 @@ called by L<Authen::PluggableCaptcha> when initializing a new captcha render obj
 called by L<Authen::PluggableCaptcha> when initializing a new captcha render object for a valid key
 
 =back
+
+=head1 DEBUGGING
+
+Set the Following envelope variables for debugging
+
+	$ENV{'Authen::PluggableCaptcha::Render-DEBUG_FUNCTION_NAME'}
+
+debug messages are sent to STDERR via the ErrorLoggingObject package
+
 
 =cut
 

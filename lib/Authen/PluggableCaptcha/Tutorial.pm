@@ -236,19 +236,22 @@ if the captcha generator were locked into a page, then you could just hardcode t
 
 =head2 FAQ
 
-=head3 It somewhat tickles in my estheticle that there is a new constructor for both new and existing CAPTCHAs, and I don't quite understand why you do it that way?
+=head3 There is a new constructor for both new and existing CAPTCHAs? I don't quite understand why you do it that way?
 
 There is a single constructer that 'forks' into 2 separate init routines based on an argument to new().
 
-The type='new' routine just creates a new KeyManager instance and runs the code necessary to generate a new public_key ( which could conceivably be a little resource intensive, if you've created a module that hits a db to check for colliisions).  The fork was an obvious solution to split unnecessary calls out for performance optimization (ie: only run what you need )
+Both arguments create a new KeyManager instance before they fork.
 
-The type='existing' routine automatically validates the construction arguments, which is unnecessary for new captchas.
+The type='new' routine immediately calls the KeyManager method generate_publickey  ( which could conceivably be a little resource intensive, if you've created a module that hits a db to check for collisions).  The fork was an obvious solution to split unnecessary calls out for performance optimization (ie: only run what you need )
+
+The type='existing' routine automatically validates the construction arguments via the KeyManger method validate_publickey, which is unnecessary for new captchas.
 
 Originally there was a single 'new', and from that you could call either 'new()' or 'existing()' -- but more people like 1 line of code.
 
 =head3 Does it really need to know the site secret and seed for an existing CAPTCHA? Intuitively, I would think that it is only needed for a new CAPTCHA, and that only the public keys should be needed for an existing CAPTCHA?
 
-That depends on how the KeyManager class you specify uses the site_secret to validate the key (which is why site_secret is not required in the base class )
+That depends on how the KeyManager class you specify uses the site_secret to validate the key (which is why site_secret is not required in the base class , it can be an empty string ).
+A DB backed key does not need the sitesecret for validation.  A logic backed key needs all the construction args to validate.
 
 For example:
 
@@ -289,6 +292,8 @@ right now, you could either
 or
 
   create a KeyManager subclass, which creates a key and stores it to the db and does the validation
+
+  you might be interested in L<Authen::PluggableCaptcha::KeyManagerDB>, which is a db backed keymanager class
 
 
 =head3 How would I expire the key in the backend?

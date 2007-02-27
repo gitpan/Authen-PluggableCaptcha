@@ -280,7 +280,13 @@ The value for the keymanager_args key will be sent to the KeyManager on instanti
 
 This is useful if you need to specify a DB connection or something similar to the keymanager
 
+=item C<do_not_validate_key INT>
 
+This is valid only for 'existing' type captchas.  
+
+passing this argument as the integer '1'(1) will not validate the publickey in the keymanager.
+
+This is useful if you are externally handling the key management, and just use this package for Render + Challenge
 
 
 =back
@@ -343,6 +349,17 @@ Full name of a Authen::PluggableCaptcha::Render derived class
 
 =back
 
+=head1 DEBUGGING
+
+Set the Following envelope variables for debugging
+
+	$ENV{'Authen::PluggableCaptcha-DEBUG_FUNCTION_NAME'}
+	$ENV{'Authen::PluggableCaptcha-BENCH_RENDER'}
+
+debug messages are sent to STDERR via the ErrorLoggingObject package
+
+
+
 =head1 BUGS/TODO
 
 This is an initial alpha release.  
@@ -403,7 +420,7 @@ package Authen::PluggableCaptcha;
 
 use strict;
 use vars qw(@ISA $VERSION);
-$VERSION= '0.04';
+$VERSION= '0.05';
 
 #############################################################################
 #ISA modules
@@ -418,6 +435,7 @@ use Authen::PluggableCaptcha::ValidityObject ();
 #use constants
 
 use constant DEBUG_FUNCTION_NAME=> $ENV{'Authen::PluggableCaptcha-DEBUG_FUNCTION_NAME'} || 0;
+use constant DEBUG_VALIDATION=> $ENV{'Authen::PluggableCaptcha-DEBUG_VALIDATION'} || 0;
 use constant BENCH_RENDER=> $ENV{'Authen::PluggableCaptcha-BENCH_RENDER'} || 0;
 
 #############################################################################
@@ -529,13 +547,23 @@ existing captcha specific inits
 =cut
 	my 	( $self , $kw_args__ref )= @_;
 	DEBUG_FUNCTION_NAME && Authen::PluggableCaptcha::ErrorLoggingObject::log_function_name('__init_existing');
-	if ( ! $$kw_args__ref{'publickey'} ) {
+	if ( ! defined $$kw_args__ref{'publickey'} || ! $$kw_args__ref{'publickey'} ) {
 		die "'publickey' must be supplied during init";
 	}
 	$self->publickey( $$kw_args__ref{'publickey'} );
 
+	if 	(
+			defined $$kw_args__ref{'do_not_validate_key'} 
+			&& 
+			( $$kw_args__ref{'do_not_validate_key'} == 1 )
+		)
+	{
+		$self->keymanager->publickey( $$kw_args__ref{'publickey'} );
+		return 1;
+	}
+
 	my 	$validate_result= $self->keymanager->validate_publickey( publickey=> $$kw_args__ref{'publickey'} );
-	print STDERR "\n validate_result -> $validate_result ";
+	DEBUG_VALIDATION && print STDERR "\n validate_result -> $validate_result ";
 
 	if ( $validate_result < 0 ) {
 		$self->keymanager->ACCEPTABLE_ERROR or die "Could not init_existing on keymanager";
@@ -682,14 +710,6 @@ Validates a user response against the key/time for this captcha
 		error_message=> "Missing required element '%s' in validate",
 		requires_array__ref=> \@_requires
 	);
-
-
-	# then validate the key extended
-	if ( !$self->__validate_key_extended() ) {
-		$self->set_error( 'validate_response' , $self->get_error('KEY invalid') );
-		return 0;
-	}
-
 
 	# then actually validate the captcha
 

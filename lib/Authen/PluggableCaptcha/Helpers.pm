@@ -38,8 +38,15 @@ an error message
 
 check_requires will check the fields of kw_args__ref to ensure all items in requires_array__ref are present.   if any are missing, it will die with the error message.
 
-
 =back
+
+=head1 DEBUGGING
+
+Set the Following envelope variables for debugging
+
+	$ENV{'Authen::PluggableCaptcha::Helpers-DEBUG_FUNCTION_NAME'}
+
+debug messages are sent to STDERR via the ErrorLoggingObject package
 
 =cut
 

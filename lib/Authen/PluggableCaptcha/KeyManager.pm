@@ -113,6 +113,16 @@ hoook called when initializing an existing captcha
 
 =back
 
+=head1 DEBUGGING
+
+Set the Following envelope variables for debugging
+
+	$ENV{'Authen::PluggableCaptcha::KeyManager-DEBUG_FUNCTION_NAME'}
+
+debug messages are sent to STDERR via the ErrorLoggingObject package
+
+
+
 =cut
 
 

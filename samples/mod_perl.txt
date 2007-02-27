@@ -18,10 +18,10 @@ sub CAPTCHA_init {
 	}
 
 	# the seed for the captcha is a hash of the sectionName and the user's session_id
-	my 	$seed= md5_hex( $sectionName . '|' . $pageObject->{'PageUser'}->get_session_id() );
+	my 	$seed= md5_hex( $sectionName . '|' . $pageObject->PageUser->get_session_id() );
 	
 	# we set/store the publickey to the captcha in the session.  we could show it to people, but honestly we do it like this because store/retrieve is easier than generating/validating every damn time
-	my 	$captcha_key= $pageObject->{'PageUser'}->get_session_stored("captcha_publickey__${sectionName}");
+	my 	$captcha_key= $pageObject->PageUser->get_session_stored("captcha_publickey__${sectionName}");
 
 	my 	$captcha;
 	if 	( $captcha_key ) {
@@ -48,7 +48,7 @@ sub CAPTCHA_init {
 			seed=> $seed ,
 		);
 		$captcha_key= $captcha->get_publickey() or die "Error";
-		$pageObject->{'PageUser'}->set_session_stored("captcha_publickey__${sectionName}",$captcha_key);
+		$pageObject->PageUser->set_session_stored("captcha_publickey__${sectionName}",$captcha_key);
 		$captcha= Authen::PluggableCaptcha->new( 
 			type=> 'existing' , 
 			site_secret=> $FindMeOn::Config::site_secret , 
@@ -107,12 +107,12 @@ sub CAPTCHA_init {
 		sub render_image {
 			my 	( $self )= @_ ;
 		
-			my 	$sectionName= $self->{'PageUser'}{'ApacheRequest'}->param('section');
+			my 	$sectionName= $self->PageUser->ApacheRequest->param('section');
 		
 			#initialize the captcha
 			&FindMeOn::Functions::Misc::CAPTCHA_init( $self , $sectionName );
 		
-			$self->{'PageUser'}{'ApacheRequest'}->content_type('image/jpeg');
+			$self->PageUser->ApacheRequest->content_type('image/jpeg');
 			$self->{'__BODY'}= $self->{'CaptchaInstance'}->render( 
 				challenge_class=> 'Authen::PluggableCaptcha::Challenge::TypeString', 
 				render_class=>'Authen::PluggableCaptcha::Render::Image::Imager' ,  
